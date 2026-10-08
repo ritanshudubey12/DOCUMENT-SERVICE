@@ -1,0 +1,20 @@
+# Secrets and environment
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+dist/
+coverage/
+*.log
+
+# Local Postman environments (may contain the JWT secret)
+postman/*.local.*
+postman/*.secret.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,3253 @@
+{
+  "info": {
+    "name": "TriostackOne - Document API",
+    "description": "Document API microservice (Website Builder). Every request in this collection returns 200 OK. Error cases (409/422/403/404...) are covered by the automated test suite (npm test).\n\nSetup: import the environment file, set `jwtSecret` to the JWT_SECRET value from your .env (or paste a token from `npm run token` into the `token` collection variable and leave jwtSecret empty). Never commit the secret. Run folders top-to-bottom with the Collection Runner: later requests reuse ids saved by earlier ones.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const CJS = (typeof CryptoJS !== 'undefined') ? CryptoJS : require('crypto-js');",
+          "function b64url(wa){return CJS.enc.Base64.stringify(wa).replace(/=+$/,'').replace(/\\+/g,'-').replace(/\\//g,'_');}",
+          "function signToken(o){",
+          "  const secret = pm.variables.get('jwtSecret');",
+          "  if(!secret){ return null; }",
+          "  const now = Math.floor(Date.now()/1000);",
+          "  const payload = {",
+          "    sub: String(o.actorId || pm.variables.get('actorId')),",
+          "    tenantId: String(o.tenantId || pm.variables.get('tenantId')),",
+          "    organizationId: String(pm.variables.get('organizationId')),",
+          "    workspaceId: String(pm.variables.get('workspaceId')),",
+          "    scopes: o.scopes || ['document:*'],",
+          "    roles: ['editor'],",
+          "    iat: now, exp: now + 3600",
+          "  };",
+          "  if(pm.variables.get('jwtIssuer')) payload.iss = pm.variables.get('jwtIssuer');",
+          "  if(pm.variables.get('jwtAudience')) payload.aud = pm.variables.get('jwtAudience');",
+          "  const h = b64url(CJS.enc.Utf8.parse(JSON.stringify({alg:'HS256',typ:'JWT'})));",
+          "  const p = b64url(CJS.enc.Utf8.parse(JSON.stringify(payload)));",
+          "  const s = b64url(CJS.HmacSHA256(h + '.' + p, secret));",
+          "  return h + '.' + p + '.' + s;",
+          "}",
+          "// 1) Authentication: Bearer <accessToken>. accessToken is a LOCAL variable, so a blank 'token' in your Postman",
+          "//    environment can never shadow it. Preferred: set jwtSecret and the token is signed here for every request.",
+          "//    Fallback: paste a ready-made JWT (npm run token) into the 'token' variable and leave jwtSecret empty.",
+          "pm.variables.unset('accessToken');",
+          "const signed = signToken({});",
+          "const manual = pm.variables.get('token');",
+          "if (signed) pm.variables.set('accessToken', signed);",
+          "else if (manual) pm.variables.set('accessToken', manual);",
+          "else if (!(pm.request.auth && pm.request.auth.type === 'noauth') && pm.request.url.getPath().startsWith('/api/')) {",
+          "  const env = pm.environment.name;",
+          "  throw new Error('No credentials (jwtSecret is empty). ' + (env ? 'Active environment: \"' + env + '\" - open it and paste JWT_SECRET from .env into jwtSecret, then Save.' : 'NO ENVIRONMENT IS SELECTED - choose \"Document API - Local\" in the top-right environment dropdown.') + ' Alternative: paste a JWT (npm run token) into the token variable.');",
+          "}",
+          "// 2) Fail early with a clear message when a request is run out of order.",
+          "if (!pm.info.requestName.startsWith('Create document')) {",
+          "  const raw = pm.request.url.toString() + ' ' + ((pm.request.body && pm.request.body.raw) || '');",
+          "  const names = ['pageId','dupPageId','rootId','heroId','headingId','buttonId','sectionId','dupNodeId','wrapperId','firstRevisionId','revision','lockId'];",
+          "  const missing = names.filter(n => raw.includes('{{' + n + '}}') && !pm.variables.get(n));",
+          "  if (missing.length) throw new Error('Missing variable(s): ' + missing.join(', ') + '. Run the collection in order with the Collection Runner (first request: \"Create document\").');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "jwtSecret",
+      "value": ""
+    },
+    {
+      "key": "jwtIssuer",
+      "value": ""
+    },
+    {
+      "key": "jwtAudience",
+      "value": ""
+    },
+    {
+      "key": "tenantId",
+      "value": "1001"
+    },
+    {
+      "key": "organizationId",
+      "value": "2001"
+    },
+    {
+      "key": "workspaceId",
+      "value": "3001"
+    },
+    {
+      "key": "actorId",
+      "value": "4001"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "pageId",
+      "value": ""
+    },
+    {
+      "key": "dupPageId",
+      "value": ""
+    },
+    {
+      "key": "documentId",
+      "value": ""
+    },
+    {
+      "key": "rootId",
+      "value": ""
+    },
+    {
+      "key": "heroId",
+      "value": ""
+    },
+    {
+      "key": "headingId",
+      "value": ""
+    },
+    {
+      "key": "buttonId",
+      "value": ""
+    },
+    {
+      "key": "sectionId",
+      "value": ""
+    },
+    {
+      "key": "dupNodeId",
+      "value": ""
+    },
+    {
+      "key": "wrapperId",
+      "value": ""
+    },
+    {
+      "key": "firstRevisionId",
+      "value": ""
+    },
+    {
+      "key": "revision",
+      "value": ""
+    },
+    {
+      "key": "idemKey",
+      "value": ""
+    },
+    {
+      "key": "idemExpected",
+      "value": ""
+    },
+    {
+      "key": "idemRevisionId",
+      "value": ""
+    },
+    {
+      "key": "lockId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Health & registry",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Readiness (database)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('ready', () => pm.expect(pm.response.json().status).to.eql('ready'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Verify Bearer token (component registry)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "const types = pm.response.json().data.map(c => c.type);",
+                  "pm.test('registry contains hero, heading, button', () => pm.expect(types).to.include.members(['hero','heading','button']));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/components",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "components"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Document lifecycle",
+      "item": [
+        {
+          "name": "Create document for page",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// new unique BIGINT page ids on every run (strings; never a JS Number)",
+                  "pm.collectionVariables.set('pageId', String(Date.now()) + String(Math.floor(Math.random()*900)+100));",
+                  "pm.collectionVariables.set('dupPageId', String(Date.now()) + String(Math.floor(Math.random()*900)+100));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('document created at revision 1 with a page root', () => {",
+                  "  pm.expect(j.data.revision).to.eql(1);",
+                  "  pm.expect(j.data.documentId).to.be.a('string');",
+                  "  pm.expect(j.data.root.type).to.eql('page');",
+                  "  pm.expect(j.data.root.id).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('documentId', j.data.documentId);",
+                  "pm.collectionVariables.set('rootId', j.data.root.id);",
+                  "pm.collectionVariables.set('firstRevisionId', j.data.revisionId);",
+                  "pm.collectionVariables.set('revision', '1');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get current draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('ids are strings and match', () => {",
+                  "  pm.expect(j.data.documentId).to.eql(pm.collectionVariables.get('documentId'));",
+                  "  pm.expect(j.data.pageId).to.eql(pm.collectionVariables.get('pageId'));",
+                  "  pm.expect(j.data.revision).to.eql(1);",
+                  "  pm.expect(j.data.schemaVersion).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Builder Actions",
+      "item": [
+        {
+          "name": "ADD_NODE hero under page",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('heroId', j.data.results[0].createdNodeIds[0]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"ADD_NODE\",\n      \"parentId\": \"{{rootId}}\",\n      \"componentType\": \"hero\",\n      \"props\": {\n        \"title\": \"Grow your business\",\n        \"description\": \"Build your website with TriostackOne\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ADD_NODE heading inside hero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('headingId', j.data.results[0].createdNodeIds[0]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"ADD_NODE\",\n      \"parentId\": \"{{heroId}}\",\n      \"componentType\": \"heading\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ADD_NODE button inside hero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('buttonId', j.data.results[0].createdNodeIds[0]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"ADD_NODE\",\n      \"parentId\": \"{{heroId}}\",\n      \"componentType\": \"button\",\n      \"props\": {\n        \"label\": \"Get started\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "UPDATE_PROPS heading text",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_PROPS\",\n      \"nodeId\": \"{{headingId}}\",\n      \"patch\": {\n        \"text\": \"Welcome to TriostackOne\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "UPDATE_STYLES hero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_STYLES\",\n      \"nodeId\": \"{{heroId}}\",\n      \"patch\": {\n        \"backgroundColor\": \"#111827\",\n        \"paddingTop\": \"80px\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "UPDATE_RESPONSIVE hero (mobile)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_RESPONSIVE\",\n      \"nodeId\": \"{{heroId}}\",\n      \"device\": \"mobile\",\n      \"patch\": {\n        \"paddingTop\": \"40px\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "UPDATE_VISIBILITY hero (hide on tablet)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_VISIBILITY\",\n      \"nodeId\": \"{{heroId}}\",\n      \"patch\": {\n        \"tablet\": false\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "HIDE_NODE / SHOW_NODE button",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"HIDE_NODE\",\n      \"nodeId\": \"{{buttonId}}\",\n      \"devices\": [\n        \"mobile\"\n      ]\n    },\n    {\n      \"type\": \"SHOW_NODE\",\n      \"nodeId\": \"{{buttonId}}\",\n      \"devices\": [\n        \"mobile\"\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "UPDATE_LINK button",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_LINK\",\n      \"nodeId\": \"{{buttonId}}\",\n      \"link\": {\n        \"href\": \"https://example.com/signup\",\n        \"target\": \"_blank\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "REPLACE_MEDIA hero (asset id above 2^53)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"REPLACE_MEDIA\",\n      \"nodeId\": \"{{heroId}}\",\n      \"assetId\": \"9007199254740993\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Verify state after edits",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const hero = pm.response.json().data.root.children[0];",
+                  "pm.test('hero props / styles / responsive / visibility persisted', () => {",
+                  "  pm.expect(hero.props.title).to.eql('Grow your business');",
+                  "  pm.expect(hero.styles).to.include({ backgroundColor: '#111827', paddingTop: '80px' });",
+                  "  pm.expect(hero.responsive.mobile).to.eql({ paddingTop: '40px' });",
+                  "  pm.expect(hero.visibility.tablet).to.eql(false);",
+                  "  pm.expect(hero.visibility.desktop).to.eql(true);",
+                  "});",
+                  "pm.test('BIGINT above 2^53 round-trips exactly as a string', () => pm.expect(hero.props.mediaAssetId).to.eql('9007199254740993'));",
+                  "pm.test('only the intended heading changed', () => {",
+                  "  pm.expect(hero.children[0].props.text).to.eql('Welcome to TriostackOne');",
+                  "  pm.expect(hero.children[1].props.label).to.eql('Get started');",
+                  "  pm.expect(hero.children[1].props.link.rel).to.eql('noopener noreferrer');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DUPLICATE_NODE button",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('dupNodeId', j.data.results[0].createdNodeIds[0]);",
+                  "pm.test('duplicate got a new id', () => pm.expect(j.data.results[0].createdNodeIds[0]).to.not.eql(pm.collectionVariables.get('buttonId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"DUPLICATE_NODE\",\n      \"nodeId\": \"{{buttonId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE_NODE duplicated button",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"DELETE_NODE\",\n      \"nodeId\": \"{{dupNodeId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "MOVE_NODE button to page root",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"MOVE_NODE\",\n      \"nodeId\": \"{{buttonId}}\",\n      \"newParentId\": \"{{rootId}}\",\n      \"index\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Multi-action batch: ADD section + INSERT_BLOCK + APPLY_THEME",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});",
+                  "pm.test('three results, ids are strings', () => { pm.expect(j.data.results).to.have.length(3); pm.expect(j.data.results[1].createdNodeIds[0]).to.be.a('string'); });",
+                  "pm.collectionVariables.set('sectionId', j.data.results[0].createdNodeIds[0]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"ADD_NODE\",\n      \"parentId\": \"{{rootId}}\",\n      \"componentType\": \"section\",\n      \"styles\": {\n        \"paddingTop\": \"48px\"\n      }\n    },\n    {\n      \"type\": \"INSERT_BLOCK\",\n      \"parentId\": \"{{rootId}}\",\n      \"block\": {\n        \"type\": \"testimonial\",\n        \"props\": {\n          \"quote\": \"Great product\",\n          \"author\": \"A. Customer\",\n          \"rating\": 5\n        },\n        \"children\": [\n          {\n            \"type\": \"heading\",\n            \"props\": {\n              \"text\": \"Loved by teams\"\n            }\n          }\n        ]\n      }\n    },\n    {\n      \"type\": \"APPLY_THEME\",\n      \"tokens\": {\n        \"primary\": \"#111827\",\n        \"accent\": \"#2563eb\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "WRAP_NODE button in container",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('wrapperId', j.data.results[0].createdNodeIds[0]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"WRAP_NODE\",\n      \"nodeId\": \"{{buttonId}}\",\n      \"wrapperType\": \"container\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "UNWRAP_NODE container",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UNWRAP_NODE\",\n      \"nodeId\": \"{{wrapperId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "LOCK_NODE hero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"LOCK_NODE\",\n      \"nodeId\": \"{{heroId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "UNLOCK_NODE hero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UNLOCK_NODE\",\n      \"nodeId\": \"{{heroId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "AI-sourced edit (token with document:ai scope)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CJS = (typeof CryptoJS !== 'undefined') ? CryptoJS : require('crypto-js');",
+                  "function b64url(wa){return CJS.enc.Base64.stringify(wa).replace(/=+$/,'').replace(/\\+/g,'-').replace(/\\//g,'_');}",
+                  "function signToken(o){",
+                  "  const secret = pm.variables.get('jwtSecret');",
+                  "  if(!secret){ return null; }",
+                  "  const now = Math.floor(Date.now()/1000);",
+                  "  const payload = {",
+                  "    sub: String(o.actorId || pm.variables.get('actorId')),",
+                  "    tenantId: String(o.tenantId || pm.variables.get('tenantId')),",
+                  "    organizationId: String(pm.variables.get('organizationId')),",
+                  "    workspaceId: String(pm.variables.get('workspaceId')),",
+                  "    scopes: o.scopes || ['document:*'],",
+                  "    roles: ['editor'],",
+                  "    iat: now, exp: now + 3600",
+                  "  };",
+                  "  if(pm.variables.get('jwtIssuer')) payload.iss = pm.variables.get('jwtIssuer');",
+                  "  if(pm.variables.get('jwtAudience')) payload.aud = pm.variables.get('jwtAudience');",
+                  "  const h = b64url(CJS.enc.Utf8.parse(JSON.stringify({alg:'HS256',typ:'JWT'})));",
+                  "  const p = b64url(CJS.enc.Utf8.parse(JSON.stringify(payload)));",
+                  "  const s = b64url(CJS.HmacSHA256(h + '.' + p, secret));",
+                  "  return h + '.' + p + '.' + s;",
+                  "}",
+                  "const t = signToken({\"scopes\":[\"document:read\",\"document:write\",\"document:ai\"]});",
+                  "if (!t) { throw new Error('Set the jwtSecret environment variable (value of JWT_SECRET in .env) to run this request'); }",
+                  "pm.variables.set('accessToken', t);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"source\": \"AI\",\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_PROPS\",\n      \"nodeId\": \"{{headingId}}\",\n      \"patch\": {\n        \"text\": \"Written by AI\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Validate (dry run)",
+      "item": [
+        {
+          "name": "Validate actions (valid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('valid and nothing persisted', () => { const d = pm.response.json().data; pm.expect(d.valid).to.eql(true); pm.expect(d.revision).to.eql(Number(pm.collectionVariables.get('revision'))); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document",
+                "validate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{revision}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_PROPS\",\n      \"nodeId\": \"{{headingId}}\",\n      \"patch\": {\n        \"text\": \"Preview only\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Validate actions (invalid -> reported in body, still 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('valid=false with the error code', () => { const d = pm.response.json().data; pm.expect(d.valid).to.eql(false); pm.expect(d.error.code).to.eql('INVALID_TREE'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document",
+                "validate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actions\": [\n    {\n      \"type\": \"ADD_NODE\",\n      \"parentId\": \"{{heroId}}\",\n      \"componentType\": \"hero\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Validate stored draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('draft is valid', () => pm.expect(pm.response.json().data.valid).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document",
+                "validate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Idempotency",
+      "item": [
+        {
+          "name": "First request with Idempotency-Key",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemExpected', pm.collectionVariables.get('revision'));",
+                  "pm.collectionVariables.set('idemKey', 'save-' + pm.collectionVariables.get('pageId') + '-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('revision incremented by exactly 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));",
+                  "pm.test('revision metadata ids are strings (BIGINT-safe)', () => {",
+                  "  pm.expect(j.data.revisionId).to.be.a('string');",
+                  "  pm.expect(j.data.actionBatchId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('not a replay', () => pm.expect(pm.response.headers.has('Idempotent-Replayed')).to.eql(false));",
+                  "pm.collectionVariables.set('idemRevisionId', j.data.revisionId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{idemExpected}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_PROPS\",\n      \"nodeId\": \"{{headingId}}\",\n      \"patch\": {\n        \"text\": \"Idempotent title\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Retry same key + same body -> replayed 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('replayed: same revisionId, header set, no new revision', () => {",
+                  "  pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true');",
+                  "  pm.expect(j.data.revisionId).to.eql(pm.collectionVariables.get('idemRevisionId'));",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedRevision\": {{idemExpected}},\n  \"actions\": [\n    {\n      \"type\": \"UPDATE_PROPS\",\n      \"nodeId\": \"{{headingId}}\",\n      \"patch\": {\n        \"text\": \"Idempotent title\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Revisions",
+      "item": [
+        {
+          "name": "List revisions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const d = pm.response.json().data;",
+                  "pm.test('newest first, flags set, ids are strings', () => {",
+                  "  pm.expect(d.items[0].revision).to.eql(Number(pm.collectionVariables.get('revision')));",
+                  "  pm.expect(d.items[0].isCurrent).to.eql(true);",
+                  "  pm.expect(d.items[0].revisionId).to.be.a('string');",
+                  "  pm.expect(d.items[d.items.length - 1].revision).to.eql(1);",
+                  "  pm.expect(d.items[d.items.length - 1].source).to.eql('SYSTEM');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/revisions?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "revisions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get exact revision by number (1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('revision 1 is the empty page', () => { const d = pm.response.json().data; pm.expect(d.revision).to.eql(1); pm.expect(d.root.children).to.have.length(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document?revision=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document"
+              ],
+              "query": [
+                {
+                  "key": "revision",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Read revision by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('is revision 1', () => pm.expect(pm.response.json().data.revision).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/revisions/{{firstRevisionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "revisions",
+                "{{firstRevisionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Compare revision 1 -> current (structural)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('node-level changes reported', () => {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.summary.added).to.be.above(0);",
+                  "  pm.expect(d.changes.some(c => c.kind === 'added' && c.type === 'hero')).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/revisions/compare?from=1&to={{revision}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "revisions",
+                "compare"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "1"
+                },
+                {
+                  "key": "to",
+                  "value": "{{revision}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore revision 1 (new revision, history kept)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('restore created a NEW revision from revision 1', () => {",
+                  "  pm.expect(j.data.revision).to.eql(Number(pm.collectionVariables.get('revision')) + 1);",
+                  "  pm.expect(j.data.restoredFromRevision).to.eql(1);",
+                  "});",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/revisions/{{firstRevisionId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "revisions",
+                "{{firstRevisionId}}",
+                "restore"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"expectedRevision\": {{revision}} }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Draft is empty again, history intact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('draft equals revision 1 content', () => pm.expect(pm.response.json().data.root.children).to.have.length(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reset to revision 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('reset created a new revision', () => pm.expect(j.data.restoredFromRevision).to.eql(2));",
+                  "pm.collectionVariables.set('revision', String(j.data.revision));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document",
+                "reset"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"expectedRevision\": {{revision}}, \"revisionNo\": 2 }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Publish",
+      "item": [
+        {
+          "name": "Publish current draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('published pointer = current revision', () => pm.expect(pm.response.json().data.publishedRevision).to.eql(Number(pm.collectionVariables.get('revision'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "publish"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"expectedRevision\": {{revision}} }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Draft shows publishedRevision",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('publishedRevision reported', () => pm.expect(pm.response.json().data.publishedRevision).to.eql(Number(pm.collectionVariables.get('revision'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Locks",
+      "item": [
+        {
+          "name": "Get lock (none yet)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('no lock', () => pm.expect(pm.response.json().data.lock).to.eql(null));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/locks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "locks"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Acquire lock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('lock held by me', () => { pm.expect(j.data.lock.heldByMe).to.eql(true); pm.expect(j.data.lock.lockId).to.be.a('string'); });",
+                  "pm.collectionVariables.set('lockId', j.data.lock.lockId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/locks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "locks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttlSeconds\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get lock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('lock present', () => pm.expect(pm.response.json().data.lock.lockId).to.eql(pm.collectionVariables.get('lockId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/locks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "locks"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Renew lock (same id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('same lock id', () => pm.expect(pm.response.json().data.lock.lockId).to.eql(pm.collectionVariables.get('lockId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/locks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "locks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttlSeconds\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Release lock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('released', () => pm.expect(pm.response.json().data.released).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/locks/{{lockId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "locks",
+                "{{lockId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Lock is gone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('no lock', () => pm.expect(pm.response.json().data.lock).to.eql(null));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/locks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "locks"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Duplicate",
+      "item": [
+        {
+          "name": "Duplicate document to another page",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "const j = pm.response.json();",
+                  "pm.test('new document for target page at revision 1', () => { pm.expect(j.data.pageId).to.eql(pm.collectionVariables.get('dupPageId')); pm.expect(j.data.revision).to.eql(1); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document/duplicate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document",
+                "duplicate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetPageId\": \"{{dupPageId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Copy uses fresh node ids",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('root id differs from source', () => pm.expect(pm.response.json().data.root.id).to.not.eql(pm.collectionVariables.get('rootId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{dupPageId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{dupPageId}}",
+                "document"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Scoped access",
+      "item": [
+        {
+          "name": "Read-only token can GET document",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CJS = (typeof CryptoJS !== 'undefined') ? CryptoJS : require('crypto-js');",
+                  "function b64url(wa){return CJS.enc.Base64.stringify(wa).replace(/=+$/,'').replace(/\\+/g,'-').replace(/\\//g,'_');}",
+                  "function signToken(o){",
+                  "  const secret = pm.variables.get('jwtSecret');",
+                  "  if(!secret){ return null; }",
+                  "  const now = Math.floor(Date.now()/1000);",
+                  "  const payload = {",
+                  "    sub: String(o.actorId || pm.variables.get('actorId')),",
+                  "    tenantId: String(o.tenantId || pm.variables.get('tenantId')),",
+                  "    organizationId: String(pm.variables.get('organizationId')),",
+                  "    workspaceId: String(pm.variables.get('workspaceId')),",
+                  "    scopes: o.scopes || ['document:*'],",
+                  "    roles: ['editor'],",
+                  "    iat: now, exp: now + 3600",
+                  "  };",
+                  "  if(pm.variables.get('jwtIssuer')) payload.iss = pm.variables.get('jwtIssuer');",
+                  "  if(pm.variables.get('jwtAudience')) payload.aud = pm.variables.get('jwtAudience');",
+                  "  const h = b64url(CJS.enc.Utf8.parse(JSON.stringify({alg:'HS256',typ:'JWT'})));",
+                  "  const p = b64url(CJS.enc.Utf8.parse(JSON.stringify(payload)));",
+                  "  const s = b64url(CJS.HmacSHA256(h + '.' + p, secret));",
+                  "  return h + '.' + p + '.' + s;",
+                  "}",
+                  "const t = signToken({\"scopes\":[\"document:read\"]});",
+                  "if (!t) { throw new Error('Set the jwtSecret environment variable (value of JWT_SECRET in .env) to run this request'); }",
+                  "pm.variables.set('accessToken', t);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "document"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Read-only token can list revisions",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CJS = (typeof CryptoJS !== 'undefined') ? CryptoJS : require('crypto-js');",
+                  "function b64url(wa){return CJS.enc.Base64.stringify(wa).replace(/=+$/,'').replace(/\\+/g,'-').replace(/\\//g,'_');}",
+                  "function signToken(o){",
+                  "  const secret = pm.variables.get('jwtSecret');",
+                  "  if(!secret){ return null; }",
+                  "  const now = Math.floor(Date.now()/1000);",
+                  "  const payload = {",
+                  "    sub: String(o.actorId || pm.variables.get('actorId')),",
+                  "    tenantId: String(o.tenantId || pm.variables.get('tenantId')),",
+                  "    organizationId: String(pm.variables.get('organizationId')),",
+                  "    workspaceId: String(pm.variables.get('workspaceId')),",
+                  "    scopes: o.scopes || ['document:*'],",
+                  "    roles: ['editor'],",
+                  "    iat: now, exp: now + 3600",
+                  "  };",
+                  "  if(pm.variables.get('jwtIssuer')) payload.iss = pm.variables.get('jwtIssuer');",
+                  "  if(pm.variables.get('jwtAudience')) payload.aud = pm.variables.get('jwtAudience');",
+                  "  const h = b64url(CJS.enc.Utf8.parse(JSON.stringify({alg:'HS256',typ:'JWT'})));",
+                  "  const p = b64url(CJS.enc.Utf8.parse(JSON.stringify(payload)));",
+                  "  const s = b64url(CJS.HmacSHA256(h + '.' + p, secret));",
+                  "  return h + '.' + p + '.' + s;",
+                  "}",
+                  "const t = signToken({\"scopes\":[\"document:read\"]});",
+                  "if (!t) { throw new Error('Set the jwtSecret environment variable (value of JWT_SECRET in .env) to run this request'); }",
+                  "pm.variables.set('accessToken', t);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "revisions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Publisher token can publish",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const CJS = (typeof CryptoJS !== 'undefined') ? CryptoJS : require('crypto-js');",
+                  "function b64url(wa){return CJS.enc.Base64.stringify(wa).replace(/=+$/,'').replace(/\\+/g,'-').replace(/\\//g,'_');}",
+                  "function signToken(o){",
+                  "  const secret = pm.variables.get('jwtSecret');",
+                  "  if(!secret){ return null; }",
+                  "  const now = Math.floor(Date.now()/1000);",
+                  "  const payload = {",
+                  "    sub: String(o.actorId || pm.variables.get('actorId')),",
+                  "    tenantId: String(o.tenantId || pm.variables.get('tenantId')),",
+                  "    organizationId: String(pm.variables.get('organizationId')),",
+                  "    workspaceId: String(pm.variables.get('workspaceId')),",
+                  "    scopes: o.scopes || ['document:*'],",
+                  "    roles: ['editor'],",
+                  "    iat: now, exp: now + 3600",
+                  "  };",
+                  "  if(pm.variables.get('jwtIssuer')) payload.iss = pm.variables.get('jwtIssuer');",
+                  "  if(pm.variables.get('jwtAudience')) payload.aud = pm.variables.get('jwtAudience');",
+                  "  const h = b64url(CJS.enc.Utf8.parse(JSON.stringify({alg:'HS256',typ:'JWT'})));",
+                  "  const p = b64url(CJS.enc.Utf8.parse(JSON.stringify(payload)));",
+                  "  const s = b64url(CJS.HmacSHA256(h + '.' + p, secret));",
+                  "  return h + '.' + p + '.' + s;",
+                  "}",
+                  "const t = signToken({\"scopes\":[\"document:read\",\"document:publish\"]});",
+                  "if (!t) { throw new Error('Set the jwtSecret environment variable (value of JWT_SECRET in .env) to run this request'); }",
+                  "pm.variables.set('accessToken', t);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('success envelope', () => {",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.success).to.eql(true);",
+                  "  pm.expect(j.meta.requestId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pages/{{pageId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pages",
+                "{{pageId}}",
+                "publish"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"expectedRevision\": {{revision}} }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
